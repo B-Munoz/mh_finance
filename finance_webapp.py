@@ -16,11 +16,15 @@ class ExpenseManager:
         return sqlite3.connect(self.db_path)
 
     def init_db(self):
-        """Inicializa la tabla SQL si no existe."""
+        """
+        Initializes the table with a Primary Key.
+        BEST PRACTICE: Always use an ID column for reliable row referencing.
+        """
         with self.get_connection() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS expenses (
-                    Date TIMESTAMP,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     Category TEXT,
                     Description TEXT,
                     Amount REAL
@@ -28,29 +32,31 @@ class ExpenseManager:
             """)
 
     def load_data(self):
-        """Carga datos directamente desde SQL a Pandas."""
+        """Loads data including the ID, but keeps it hidden in UI later."""
         with self.get_connection() as conn:
             try:
-                # parse_dates convierte automáticamente el texto a datetime objects
                 df = pd.read_sql("SELECT * FROM expenses", conn, parse_dates=["Date"])
                 return df
             except Exception:
-                return pd.DataFrame(columns=["Date", "Category", "Description", "Amount"])
+                return pd.DataFrame(columns=["id", "Date", "Category", "Description", "Amount"])
 
     def save_bulk_data(self, df):
-        """Sobrescribe la tabla con el dataframe editado (Bulk Update)."""
+        """
+        Safely updates the database without dropping the table.
+        Strategy: Truncate (Delete all) -> Append. 
+        This preserves the Table Schema (Primary Keys, constraints).
+        """
         with self.get_connection() as conn:
-            # if_exists='replace' borra la tabla y la crea de nuevo con los datos del DF
-            df.to_sql("expenses", conn, if_exists="replace", index=False)
+            conn.execute("DELETE FROM expenses") 
+            df.to_sql("expenses", conn, if_exists="append", index=False)
 
     def add_expense(self, category, description, amount):
-        """Inserta una sola fila usando SQL (Más eficiente que cargar todo el CSV)."""
+        """Inserts a single row letting SQL handle the Timestamp and ID."""
         with self.get_connection() as conn:
             conn.execute(
                 "INSERT INTO expenses (Date, Category, Description, Amount) VALUES (?, ?, ?, ?)",
                 (datetime.now(), category, description, amount)
             )
-        # Retornamos el dataframe actualizado para la UI
         return self.load_data()
 
 # Instanciamos el manager
@@ -83,13 +89,15 @@ else:
     # 1. Metrics Row
     total_spent = st.session_state.df["Amount"].sum()
     col1, col2 = st.columns(2)
-    col1.metric("Total Spent", f"${total_spent}")
+    col1.metric("Total Spent", f"${total_spent:,.2f}")
     col2.metric("Total Transactions", len(st.session_state.df))
 
     # 2. Charts
     st.subheader("Expenses by Category")
-    chart_data = st.session_state.df.groupby("Category")["Amount"].sum()
-    st.bar_chart(chart_data)
+    # Grouping by category for visual
+    if not st.session_state.df.empty:
+        chart_data = st.session_state.df.groupby("Category")["Amount"].sum()
+        st.bar_chart(chart_data)
 
     # 3. Data Table (Editable)
     st.subheader("Transactions Editor")
@@ -101,7 +109,8 @@ else:
         use_container_width=True,
         num_rows="dynamic",
         column_config={
-            "Amount": st.column_config.NumberColumn(format="$%"),
+            "id": None, # Best Practice: Hide implementation details (Primary Key) from users
+            "Amount": st.column_config.NumberColumn(format="$%d"),
             "Date": st.column_config.DatetimeColumn(format="D MMM YYYY, HH:mm")
         },
         key="main_editor"
@@ -110,7 +119,7 @@ else:
     if st.button("💾 Save Changes to DB"):
         st.session_state.df = edited_df
         manager.save_bulk_data(edited_df)
-        st.success("Database updated successfully!")
+        st.success("Database updated successfully (Schema preserved)!")
         st.rerun()
 
     # 4. Category Matrix View
@@ -125,6 +134,7 @@ else:
         data_dict[cat] = amounts
         max_len = max(max_len, len(amounts))
     
+    # Pad lists to same length to create a DataFrame
     for cat in data_dict:
         data_dict[cat] += [None] * (max_len - len(data_dict[cat]))
         
