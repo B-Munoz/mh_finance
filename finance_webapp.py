@@ -5,7 +5,7 @@ import config
 CATEGORIES = config.get_categories()
 # Instanciamos los managers
 expense_manager = ExpenseManager(config.DB_PATH)
-budget_manager = BudgetManager(config.DB_PATH, config.ALLOCATION_PCT)
+budget_manager = BudgetManager(config.DB_PATH, config.ALLOCATION_PCT, config.CATEGORY_CONFIG)
 
 st.set_page_config(page_title="Finance Manager", page_icon="💰")
 st.title("💰 Personal Finance Manager")
@@ -74,7 +74,10 @@ else:
                 value=f"${current:,.0f}", 
                 delta=f"Goal: ${limit:,.0f}" if limit > 0 else "Unlimited"
             )
-            st.progress(percent)
+            try:
+                st.progress(percent)
+            except:
+                pass
 
     # 2. Charts
     st.subheader("Expenses by Category")

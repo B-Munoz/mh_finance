@@ -88,9 +88,10 @@ class ExpenseManager:
 
 
 class BudgetManager:
-    def __init__(self, db_path, allocation_map):
+    def __init__(self, db_path, allocation_map, limit_map):
         self.db_path = db_path
         self.allocation_map = allocation_map # Now using percentages
+        self.limit_map = limit_map
         self.init_db()
 
     def get_connection(self):
@@ -117,27 +118,61 @@ class BudgetManager:
             return dict(rows)
 
     def allocate_income(self, income_amount):
-        """
-        Distributes income based on fixed percentages.
-        """
-        allocations = {}
+        """Distributes income with waterfall logic (overflows to other buckets)."""
+        current_balances = self.get_balances()
+        allocations = {cat: 0.0 for cat in self.allocation_map}
+        remaining_income = float(income_amount)
         
-        # Validation: Warn if config doesn't sum to 1.0 (Optional but recommended)
-        total_pct = sum(self.allocation_map.values())
-        if not (0.99 <= total_pct <= 1.01):
-            print(f"WARNING: Allocation percentages sum to {total_pct}, not 1.0")
-
-        with self.get_connection() as conn:
-            for category, pct in self.allocation_map.items():
-                if pct == 0:
-                    continue
-                    
-                added_amount = income_amount * pct
-                allocations[category] = added_amount
+        # Loop until money runs out or we make no progress (precision safety)
+        while remaining_income > 0.01:
+            # 1. Find categories that are not full yet
+            active_cats = []
+            for cat, pct in self.allocation_map.items():
+                if pct <= 0: continue
                 
-                conn.execute(
-                    "UPDATE budgets SET current_balance = current_balance + ? WHERE category = ?",
-                    (added_amount, category)
-                )
+                limit = self.limit_map.get(cat, 0)
+                current = current_balances.get(cat, 0.0) + allocations[cat]
+                
+                # If limit is 0 (unlimited) or we have space
+                if limit == 0 or current < limit:
+                    active_cats.append(cat)
+
+            if not active_cats: break # Nowhere left to put money
+
+            # 2. Renormalize weights for just the active categories
+            total_active_weight = sum(self.allocation_map[c] for c in active_cats)
+            if total_active_weight == 0: break
+
+            # 3. Distribute
+            distributed_this_round = 0
+            for cat in active_cats:
+                # Calculate relative share
+                weight = self.allocation_map[cat] / total_active_weight
+                share = remaining_income * weight
+                
+                # Check space
+                limit = self.limit_map.get(cat, 0)
+                current = current_balances.get(cat, 0.0) + allocations[cat]
+                
+                space = (limit - current) if limit > 0 else float('inf')
+                
+                actual_add = min(share, space)
+                allocations[cat] += actual_add
+                distributed_this_round += actual_add
+
+            remaining_income -= distributed_this_round
+            
+            # Prevent infinite loops if numbers act weird
+            if distributed_this_round < 0.01: break
+
+        # 4. Save to DB (One transaction block)
+        with self.get_connection() as conn:
+            with conn:
+                for cat, amount in allocations.items():
+                    if amount > 0:
+                        conn.execute(
+                            "UPDATE budgets SET current_balance = current_balance + ? WHERE category = ?",
+                            (amount, cat)
+                        )
         
         return allocations
