@@ -68,7 +68,7 @@ else:
                     label=category, 
                     # Note: applied your preferred dot formatting here too
                     value=f"${current:,.0f}".replace(",", "."), 
-                    delta=f"Goal: ${limit:,.0f}".replace(",", ".") if limit > 0 else "Unlimited"
+                    delta=f"Budget: ${limit:,.0f}".replace(",", ".") if limit > 0 else None
                 )
                 
                 # ONLY show progress bar if a limit exists (is greater than 0)
