@@ -51,10 +51,10 @@ else:
     # 1. Metrics Row
     total_spent, total_count = ExpenseManager.calculate_metrics(st.session_state.df)
     col1, col2 = st.columns(2)
-    col1.metric("Total Spent", f"${total_spent}")
+    col1.metric("Total Spent", f"${total_spent:,.0f}")
     col2.metric("Total Transactions", len(st.session_state.df))
     st.markdown("---")
-    st.subheader("Budget Goals vs. Current Balance")
+    st.subheader("Budgets")
     
     balances = budget_manager.get_balances()
     cols = st.columns(3) 
@@ -66,13 +66,13 @@ else:
         if limit > 0:
             percent = min(current / limit, 1.0)
         else:
-            percent = 1.0 
+            pass
 
         with cols[i % 3]: 
             st.metric(
                 label=category, 
                 value=f"${current:,.0f}", 
-                delta=f"Goal: ${limit:,.0f}" if limit > 0 else "Unlimited"
+                delta=f"Budget: ${limit:,.0f}" if limit > 0 else "Unlimited"
             )
             try:
                 st.progress(percent)
@@ -109,17 +109,5 @@ else:
     if st.button("💾 Save Changes to DB"):
         st.session_state.df = edited_df
         expense_manager.save_bulk_data(edited_df)
-        st.success("Database updated successfully (Schema preserved)!")
+        st.success("Database updated successfully!")
         st.rerun()
-
-    # 4. Category Matrix View
-    st.subheader("Category Matrix View")
-    st.caption("Each column represents a category, showing individual transaction amounts.")
-    
-    compact_df = ExpenseManager.get_category_matrix(st.session_state.df, CATEGORIES)
-    
-    st.dataframe(
-        compact_df.style.format("$", na_rep=""),
-        use_container_width=True,
-        hide_index=True 
-    )
