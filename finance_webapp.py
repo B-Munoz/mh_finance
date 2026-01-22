@@ -4,8 +4,8 @@ import config
 
 CATEGORIES = config.get_categories()
 # Instanciamos los managers
-expense_manager = ExpenseManager(config.DB_PATH)
-budget_manager = BudgetManager(config.DB_PATH, config.ALLOCATION_PCT, config.CATEGORY_CONFIG)
+expense_manager = ExpenseManager() 
+budget_manager = BudgetManager(config.ALLOCATION_PCT, config.CATEGORY_CONFIG)
 
 st.set_page_config(page_title="Finance Manager", page_icon="💰")
 st.title("💰 Personal Finance Manager")
@@ -89,16 +89,19 @@ else:
     # 3. Data Table (Editable)
     st.subheader("Transactions Editor")
     
-    df_display = st.session_state.df.sort_values(by="Date", ascending=False)
+    df_display = st.session_state.df.sort_values(by="date", ascending=False)
     
     edited_df = st.data_editor(
         df_display,
         use_container_width=True,
         num_rows="dynamic",
         column_config={
-            "id": None, # Best Practice: Hide implementation details (Primary Key) from users
-            "Amount": st.column_config.NumberColumn(format="$%d"),
-            "Date": st.column_config.DatetimeColumn(format="D MMM YYYY, HH:mm")
+            "id": None,
+            # Change "Amount" and "Date" to lowercase keys
+            "amount": st.column_config.NumberColumn(label="Amount ($)", format="$%d"),
+            "date": st.column_config.DatetimeColumn(label="Date", format="D MMM YYYY, HH:mm"),
+            "category": st.column_config.TextColumn(label="Category"),
+            "description": st.column_config.TextColumn(label="Description")
         },
         key="main_editor"
     )
