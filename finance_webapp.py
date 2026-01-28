@@ -8,7 +8,7 @@ expense_manager = ExpenseManager()
 budget_manager = BudgetManager(config.ALLOCATION_PCT, config.CATEGORY_CONFIG)
 
 st.set_page_config(page_title="Finance Manager", page_icon="💰")
-st.title("💰 Personal Finance Manager")
+st.title("Personal Finance Manager")
 
 if 'df' not in st.session_state:
     st.session_state.df = expense_manager.load_data()
@@ -25,7 +25,7 @@ with st.sidebar:
         
         if submitted:
             st.session_state.df = expense_manager.add_expense(category, description, amount)
-            st.toast("Expense added to Database!")
+            st.toast("Expense added!")
      
     st.markdown("---")
     st.header("Add Income")
@@ -66,9 +66,8 @@ else:
                 # Display the metric
                 st.metric(
                     label=category, 
-                    # Note: applied your preferred dot formatting here too
-                    value=f"${current:,.0f}".replace(",", "."), 
-                    delta=f"Budget: ${limit:,.0f}".replace(",", ".") if limit > 0 else None
+                    value=f"${current:,.0f}", 
+                    delta=f"Budget: ${limit:,.0f}" if limit > 0 else None
                 )
                 
                 # ONLY show progress bar if a limit exists (is greater than 0)
@@ -103,7 +102,7 @@ else:
         key="main_editor"
     )
 
-    if st.button("💾 Save Changes to DB"):
+    if st.button("Save Changes to DB"):
         st.session_state.df = edited_df
         expense_manager.save_bulk_data(edited_df)
         st.success("Database updated successfully!")
