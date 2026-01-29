@@ -16,8 +16,8 @@ if 'df' not in st.session_state:
 # --- Sidebar: Add New Expense ---
 with st.sidebar:
     st.header("Add New Expense")
-    with st.form("expense_form", clear_on_submit=True):
-        amount = st.number_input("Amount ($)", min_value=0, step=100)
+    with st.form("expense_form", clear_on_submit=True, enter_to_submit=False):
+        amount = st.number_input("Amount ($)", min_value=0, step=1000, value=None)
         description = st.text_input("Description")
         category = st.selectbox("Category", CATEGORIES)
         
@@ -30,16 +30,16 @@ with st.sidebar:
     st.markdown("---")
     st.header("Add Income")
     
-    with st.form("income_form", clear_on_submit=True):
-        income_amount = st.number_input("Income Amount ($)", min_value=0, step=1000)
+    with st.form("income_form", clear_on_submit=True, enter_to_submit=False):
+        income_amount = st.number_input("Income Amount ($)", min_value=0, step=1000, value=None)
         submitted_income = st.form_submit_button("Allocate Income")
         
         if submitted_income and income_amount > 0:
             allocations = budget_manager.allocate_income(income_amount)
             st.toast(f"Income of ${income_amount} distributed!")
             
-            # Optional: Show breakdown
-            with st.expander("See Allocation Breakdown", expanded=True):
+            # Show breakdown
+            with st.expander("Allocation Breakdown", expanded=True):
                 for cat, amt in allocations.items():
                     if amt > 0:
                         st.write(f"**{cat}**: +${amt:,.0f}")

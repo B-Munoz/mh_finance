@@ -3,7 +3,7 @@ DB_PATH = "expenses.db"
 # If a category has no specific limit, you can set it to 0 or None
 CATEGORY_CONFIG = {
     "Transporte": 150000,
-    "Vivienda": 1500000,
+    "Vivienda": 1200000,
     "Ocio" : 400000,
     "Salud" : 300000,
     "Ropa" : 300000,
@@ -15,14 +15,14 @@ CATEGORY_CONFIG = {
 }
 
 ALLOCATION_PCT = {
-    "Transporte": 0.08,  
-    "Vivienda": 0.30,     
+    "Transporte": 0.05,  
+    "Vivienda": 0.28,     
     "Ocio": 0.09,
     "Salud": 0.02,
     "Ropa" : 0.02,
     "Misceláneo": 0.24,
     "Departamento": 0.05,
-    "Ahorro": 0.15,
+    "Ahorro": 0.20,
     "Vacaciones": 0.05
 }
 
