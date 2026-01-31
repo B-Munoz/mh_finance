@@ -44,11 +44,29 @@ class ExpenseManager:
             except Exception:
                 return pd.DataFrame(columns=["id", "date", "category", "description", "amount"])
 
-    def save_bulk_data(self, df):
-        with self.get_connection() as conn:
-            with conn.begin(): # Transaction
-                conn.execute(text("DELETE FROM expenses")) 
-                df.to_sql("expenses", conn, if_exists="append", index=False)
+    def save_bulk_data(self, df: pd.DataFrame):
+            with self.get_connection() as conn:
+                with conn.begin(): # Transaction
+                    # 1. Calculate net change per category
+                    old_df = pd.read_sql(text("SELECT category, amount FROM expenses"), conn)
+                    old_totals = old_df.groupby("category")["amount"].sum()
+                    new_totals = df.groupby("category")["amount"].sum()
+                    
+                    # Align indices to catch all categories
+                    all_cats = old_totals.index.union(new_totals.index)
+                    diffs = new_totals.reindex(all_cats, fill_value=0) - old_totals.reindex(all_cats, fill_value=0)
+
+                    # 2. Sync Expenses table
+                    conn.execute(text("DELETE FROM expenses"))
+                    df.to_sql("expenses", conn, if_exists="append", index=False)
+
+                    # 3. Adjust Budgets (Difference is subtracted because Expense up = Balance down)
+                    for cat, diff in diffs.items():
+                        if diff != 0:
+                            conn.execute(
+                                text("UPDATE budgets SET current_balance = current_balance - :d WHERE category = :c"),
+                                {"d": float(diff), "c": cat}
+                            )
 
     def add_expense(self, category, description, amount):
         with self.get_connection() as conn:
